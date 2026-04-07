@@ -26,16 +26,32 @@ const Cart = ({ cart, updateQuantity, removeFromCart, clearCart, placeOrder }) =
     if (!customerDetails.phone || !/^\d{10}$/.test(customerDetails.phone)) {
       newErrors.phone = "Phone must be a 10-digit number";
     }
-    if (!customerDetails.tableNumber || isNaN(customerDetails.tableNumber)) {
-      newErrors.tableNumber = "Please enter a valid table number";
+    
+    // Only validate table number if order type is Dine-in
+    if (customerDetails.orderType === 'Dine-in') {
+      if (!customerDetails.tableNumber || isNaN(customerDetails.tableNumber)) {
+        newErrors.tableNumber = "Please enter a valid table number";
+      }
     }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCustomerDetails(prev => ({ ...prev, [name]: value }));
+    setCustomerDetails(prev => {
+        const newData = { ...prev, [name]: value };
+        // Clear table number error if user switches to Takeaway
+        if (name === 'orderType' && value === 'Takeaway') {
+            setErrors(prevErrors => {
+                const { tableNumber, ...rest } = prevErrors;
+                return rest;
+            });
+            newData.tableNumber = ''; // Clear table number if it's takeaway
+        }
+        return newData;
+    });
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -156,27 +172,29 @@ const Cart = ({ cart, updateQuantity, removeFromCart, clearCart, placeOrder }) =
                 {errors.phone && <p style={{color: 'red', fontSize: '12px', marginTop: '5px'}}>{errors.phone}</p>}
               </div>
 
-              <div style={{display: 'flex', gap: '20px'}}>
-                <div className="input-block" style={{flex: 1}}>
-                  <label>Table Number</label>
-                  <input
-                    type="text"
-                    name="tableNumber"
-                    className="premium-input"
-                    placeholder="e.g. 12"
-                    value={customerDetails.tableNumber}
-                    onChange={handleInputChange}
-                  />
-                  {errors.tableNumber && <p style={{color: 'red', fontSize: '12px', marginTop: '5px'}}>{errors.tableNumber}</p>}
-                </div>
-
+              <div style={{display: 'flex', gap: '20px', marginBottom: '15px'}}>
                 <div className="input-block" style={{flex: 1}}>
                   <label>Order Type</label>
                   <select name="orderType" className="premium-input" value={customerDetails.orderType} onChange={handleInputChange}>
-                    <option value="Dine-in">Dine-in</option>
-                    <option value="Takeaway">Takeaway</option>
+                    <option value="Dine-in">🍽️ Dine-in</option>
+                    <option value="Takeaway">🥡 Takeaway</option>
                   </select>
                 </div>
+
+                {customerDetails.orderType === 'Dine-in' && (
+                  <div className="input-block" style={{flex: 1, animation: 'fadeIn 0.3s ease'}}>
+                    <label>Table Number</label>
+                    <input
+                      type="text"
+                      name="tableNumber"
+                      className="premium-input"
+                      placeholder="e.g. 12"
+                      value={customerDetails.tableNumber}
+                      onChange={handleInputChange}
+                    />
+                    {errors.tableNumber && <p style={{color: 'red', fontSize: '12px', marginTop: '5px'}}>{errors.tableNumber}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="input-block">

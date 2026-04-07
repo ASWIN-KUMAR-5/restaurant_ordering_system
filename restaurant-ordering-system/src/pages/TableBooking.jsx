@@ -22,6 +22,43 @@ const TableBooking = ({ showToast }) => {
     Night: ['9:00 PM', '9:30 PM', '10:00 PM']
   };
 
+  const isTimePassed = (timeStr) => {
+    if (!formData.date || !timeStr) return false;
+    
+    const today = new Date();
+    const todayDateStr = today.toISOString().split('T')[0];
+    
+    // If not today, no time has "passed"
+    if (formData.date !== todayDateStr) return false;
+    
+    let hours, minutes;
+    
+    // Handle '6:00 AM' format
+    if (timeStr.includes('M')) {
+      const parts = timeStr.split(' ');
+      if (parts.length < 2) return false;
+      const [time, modifier] = parts;
+      let [h, m] = time.split(':');
+      hours = parseInt(h);
+      minutes = parseInt(m);
+      
+      if (modifier === 'PM' && hours < 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+    } else { 
+      // Handle '19:15' format from HTML time input
+      const parts = timeStr.split(':');
+      if (parts.length < 2) return false;
+      hours = parseInt(parts[0]);
+      minutes = parseInt(parts[1]);
+    }
+    
+    const slotTimeTotalMinutes = hours * 60 + minutes;
+    const currentTimeTotalMinutes = today.getHours() * 60 + today.getMinutes();
+    
+    // Add a 15-minute buffer so they don't book for "right now"
+    return slotTimeTotalMinutes <= (currentTimeTotalMinutes + 15);
+  };
+
   const validate = () => {
     let newErrors = {};
     if (formData.name.trim().length < 3) {
@@ -42,6 +79,8 @@ const TableBooking = ({ showToast }) => {
     }
     if (!formData.time) {
         newErrors.time = "Please choose a time slot";
+    } else if (isTimePassed(formData.time)) {
+        newErrors.time = "This time has already passed. Please choose a future slot.";
     }
     
     setErrors(newErrors);
@@ -50,9 +89,24 @@ const TableBooking = ({ showToast }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+        const newData = { ...prev, [name]: value };
+        // Reset time if date changes to today and current time is now passed
+        if (name === 'date' && newData.time && isTimePassed(newData.time)) {
+            newData.time = '';
+        }
+        return newData;
+    });
+
     if (errors[name]) {
         setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    // Proactive validation for time
+    if (name === 'time' && isTimePassed(value)) {
+        setErrors(prev => ({ ...prev, time: "This time has already passed for today." }));
+    } else if (name === 'time') {
+        setErrors(prev => ({ ...prev, time: "" }));
     }
   };
 
@@ -201,29 +255,35 @@ const TableBooking = ({ showToast }) => {
                     </div>
 
                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', maxHeight: '250px', overflowY: 'auto', padding: '5px'}} className="no-scrollbar">
-                        {timeSlots[activeCategory].map(slot => (
-                            <button
-                                key={slot}
-                                type="button"
-                                onClick={() => {
-                                    setFormData(prev => ({...prev, time: slot}));
-                                    setCustomTimeVisible(false);
-                                }}
-                                style={{
-                                    padding: '12px 5px',
-                                    borderRadius: '12px',
-                                    border: formData.time === slot && !customTimeVisible ? '2px solid #ff5722' : '2px solid #f0f0f0',
-                                    background: formData.time === slot && !customTimeVisible ? '#fff0eb' : 'white',
-                                    color: formData.time === slot && !customTimeVisible ? '#ff5722' : '#2d3436',
-                                    fontWeight: '700',
-                                    fontSize: '13px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            >
-                                {slot}
-                            </button>
-                        ))}
+                        {timeSlots[activeCategory].map(slot => {
+                            const passed = isTimePassed(slot);
+                            return (
+                                <button
+                                    key={slot}
+                                    type="button"
+                                    disabled={passed}
+                                    onClick={() => {
+                                        setFormData(prev => ({...prev, time: slot}));
+                                        setCustomTimeVisible(false);
+                                    }}
+                                    style={{
+                                        padding: '12px 5px',
+                                        borderRadius: '12px',
+                                        border: formData.time === slot && !customTimeVisible ? '2px solid #ff5722' : '2px solid #f0f0f0',
+                                        background: formData.time === slot && !customTimeVisible ? '#fff0eb' : 'white',
+                                        color: formData.time === slot && !customTimeVisible ? '#ff5722' : (passed ? '#ccc' : '#2d3436'),
+                                        fontWeight: '700',
+                                        fontSize: '13px',
+                                        cursor: passed ? 'not-allowed' : 'pointer',
+                                        opacity: passed ? 0.5 : 1,
+                                        transition: 'all 0.2s ease',
+                                        textDecoration: passed ? 'line-through' : 'none'
+                                    }}
+                                >
+                                    {slot}
+                                </button>
+                            );
+                        })}
                     </div>
                     
                     <button 
