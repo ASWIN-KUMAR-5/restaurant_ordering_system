@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const TableBooking = ({ showToast }) => {
   const [formData, setFormData] = useState({
@@ -82,9 +83,9 @@ const TableBooking = ({ showToast }) => {
             >
               Make Another Booking
             </button>
-            <button className="btn-premium btn-outline" onClick={() => window.location.href='/menu'}>
+            <Link to="/menu" className="btn-premium btn-outline">
               Browse Menu
-            </button>
+            </Link>
         </div>
       </div>
     );
